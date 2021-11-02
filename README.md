@@ -8,5 +8,7 @@ The game of life - rules:
 3. Any live cell with more than three live neighbours dies, as if by overpopulation.
 4. Any dead cell with exactly three live neighbours becomes a live cell, as if by reproduction.
 
+Youtube video: https://www.youtube.com/watch?v=cHRlf6spJ3M
+
 <p align='center'> <img src = https://i.imgur.com/iuMP1VY.png> </p>
 <p align='center'> <img src = https://i.imgur.com/sOrWsbm.png> </p>
