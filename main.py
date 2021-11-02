@@ -20,20 +20,20 @@ import numpy as np
 
 
 # ----- GLOBAL VARIABLES -----
-import pygame.font
 
-WINDOW = 780
-GRID_SIZE = 690
-SCREEN = pg.display.set_mode((GRID_SIZE, WINDOW))
+WINDOW_HEIGHT = 800
+WINDOW_WIDTH = 1300
+SCREEN = pg.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
 TITLE = 'Game of life'
-
 
 BG_COLOR = (59, 59, 58)
 RECT_COLORS = [(66, 183, 255), (138, 138, 138)]
 BUTTON_COLORS = [(142, 237, 123), (226, 237, 123)]
 
-RECT_SIZE = 30
-FONT_SIZE = 50
+RECT_SIZE = 10
+STATE_TEXT_FONT_SIZE = 50
+POPULATION_TEXT_FONT_SIZE = 20
+BUTTON_HEIGHT = 60
 
 CLOCK = pg.time.Clock()
 CELLS = []
@@ -44,6 +44,7 @@ ALIVE_STATE = 0
 
 GAME_TIME = 0
 START = 0
+POPULATION = 0
 # ----------------------------
 
 
@@ -58,23 +59,35 @@ def set_screen_background():
 
 def initialize_world():
     global CELLS, NEXT_STATE
-    CELLS = np.ones((int(GRID_SIZE/RECT_SIZE) + 2, int(GRID_SIZE/RECT_SIZE) + 2), dtype=int)
+    CELLS = np.ones((int((WINDOW_HEIGHT - BUTTON_HEIGHT)/RECT_SIZE) + 3, int(WINDOW_WIDTH/RECT_SIZE) + 2), dtype=int)
     NEXT_STATE = np.copy(CELLS)
 
 def update_grid():
-    for i in range(int(GRID_SIZE/RECT_SIZE) + 1):
-        for j in range(int(GRID_SIZE/RECT_SIZE) + 1):
+    global POPULATION
+    POPULATION = 0
+
+    for i in range(int((WINDOW_HEIGHT - BUTTON_HEIGHT)/RECT_SIZE)):
+        for j in range(int(WINDOW_WIDTH/RECT_SIZE) + 1):
             cls = CELLS[i + 1][j + 1]
+            if cls == ALIVE_STATE:
+                POPULATION += 1
             pg.draw.rect(SCREEN, RECT_COLORS[cls], pg.Rect(RECT_SIZE*j, RECT_SIZE*i, RECT_SIZE, RECT_SIZE), cls)
 
 def within_start_range(pos):
-    return (pos[1] > GRID_SIZE + RECT_SIZE and pos[1] < RECT_SIZE + WINDOW)
+    return (pos[1] > WINDOW_HEIGHT - BUTTON_HEIGHT and pos[1] < WINDOW_HEIGHT)
 
 def generate_cell(pos):
     global CELLS, NEXT_STATE
     X = int(pos[1] / RECT_SIZE)
     Y = int(pos[0] / RECT_SIZE)
     CELLS[X + 1][Y + 1] = ALIVE_STATE
+    NEXT_STATE = np.copy(CELLS)
+
+def kill_cell(pos):
+    global CELLS, NEXT_STATE
+    X = int(pos[1] / RECT_SIZE)
+    Y = int(pos[0] / RECT_SIZE)
+    CELLS[X + 1][Y + 1] = DEAD_STATE
     NEXT_STATE = np.copy(CELLS)
 
 def number_of_neighbours(i, j):
@@ -89,28 +102,28 @@ def number_of_neighbours(i, j):
 
 def create_button():
     left = 0
-    top = GRID_SIZE + RECT_SIZE
-    width = WINDOW
-    height = WINDOW - GRID_SIZE
+    top = WINDOW_HEIGHT - BUTTON_HEIGHT
+    width = WINDOW_WIDTH
+    height = top
 
     pg.draw.rect(SCREEN, BUTTON_COLORS[START], pg.Rect(left, top, width, height), 0)
-    font = pg.font.SysFont('cambria', FONT_SIZE)
-    font.set_bold(3)
+    state_font = pg.font.SysFont('cambria', STATE_TEXT_FONT_SIZE)
+    state_font.set_bold(3)
 
-    if not START:
-        TEXT = 'START'
-    else:
-        TEXT = 'PAUSE'
+    population_font = pg.font.SysFont('cambria', POPULATION_TEXT_FONT_SIZE)
+    population_font.set_bold(3)
 
-    SCREEN.blit(font.render(TEXT, True, (255, 255, 255)), (width/2 - FONT_SIZE*2 - 10, top))
+    STATE_TEXT = 'START' if not START else 'PAUSE'
+    POPULATION_TEXT = 'POPULATION: ' + str(POPULATION)
+    SCREEN.blit(state_font.render(STATE_TEXT, True, (255, 255, 255)), (width/2 - STATE_TEXT_FONT_SIZE*2 - 10, top))
+    SCREEN.blit(population_font.render(POPULATION_TEXT, True, (255, 255, 255)), (width/2 + 100, top + 20))
 
 
 def Conway():
     global CELLS, NEXT_STATE
-    for i in range(1, int(GRID_SIZE/RECT_SIZE) + 1):
-        for j in range(1, int(GRID_SIZE/RECT_SIZE) + 1):
+    for i in range(1, int((WINDOW_HEIGHT - BUTTON_HEIGHT)/RECT_SIZE) + 1):
+        for j in range(1, int(WINDOW_WIDTH/RECT_SIZE) + 1):
             N = number_of_neighbours(i, j)
-
             if N < 2 or N > 3:
                 NEXT_STATE[i][j] = DEAD_STATE
             elif N == 3:
@@ -127,20 +140,37 @@ def Conway():
 initialize_world()
 pg.font.init()
 
+is_drawing = False
+is_deleting = False
+
 while True:
     set_game_title()
     set_screen_background()
     create_button()
     update_grid()
+    pos = pg.mouse.get_pos()
+
+    if is_drawing:
+            generate_cell(pos)
+    if is_deleting:
+            kill_cell(pos)
+
     for event in pg.event.get():
         if event.type == pg.MOUSEBUTTONDOWN:
             if event.button == 1:
-                pos = pg.mouse.get_pos()
-
                 if within_start_range(pos):
                     START ^= 1
+                    is_drawing = False
                 else:
-                    generate_cell(pos)
+                    is_drawing = True
+            elif event.button == 3:
+                if not within_start_range(pos):
+                    is_deleting = True
+                is_drawing = False
+
+        elif event.type == pg.MOUSEBUTTONUP:
+            is_drawing = False
+            is_deleting = False
 
         if event.type == pg.QUIT:
             sys.exit()
@@ -151,6 +181,6 @@ while True:
     else:
         CLOCK.tick(30)
 
-    GAME_TIME += 1
+    GAME_TIME += 100
     pg.display.update()
 # ----------------
